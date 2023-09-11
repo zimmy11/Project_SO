@@ -1,1 +1,1 @@
-# Project_SO Arduino Scheduler
+# Project_SO CPU Scheduler
