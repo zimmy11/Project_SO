@@ -8,7 +8,7 @@ FakeOS os;
 typedef struct {
   int quantum;
 } SchedRRArgs;
-
+//algortimo di scheduling
 void schedRR(FakeOS* os, void* args_){
   SchedRRArgs* args=(SchedRRArgs*)args_;
 
@@ -16,11 +16,10 @@ void schedRR(FakeOS* os, void* args_){
   // if none, return
   if (! os->ready.first)
     return;
-
+ 
   FakePCB* pcb=(FakePCB*) List_popFront(&os->ready);
-  os->running=pcb;
-  
-  assert(pcb->events.first);
+  os->running_processes[os->cpu_index]=pcb;
+    assert(pcb->events.first);
   ProcessEvent* e = (ProcessEvent*)pcb->events.first;
   assert(e->type==CPU);
 
@@ -57,10 +56,15 @@ int main(int argc, char** argv) {
     }
   }
   printf("num processes in queue %d\n", os.processes.size);
-  while(os.running
-        || os.ready.first
+  int end_process=os.num_cores;
+  while(end_process || os.ready.first
         || os.waiting.first
         || os.processes.first){
+    end_process=os.num_cores;
     FakeOS_simStep(&os);
+    for(int i=0; i<os.num_cores;i++){
+      if(os.running_processes[i]==NULL)end_process--;
+    }
+
   }
 }

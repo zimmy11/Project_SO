@@ -5,12 +5,29 @@
 #include "fake_os.h"
 
 void FakeOS_init(FakeOS* os) {
-  os->running=0;
+  /* os->running=0;*/ 
   List_init(&os->ready);
   List_init(&os->waiting);
   List_init(&os->processes);
   os->timer=0;
   os->schedule_fn=0;
+  os->cpu_index=0; 
+  printf("Inserisci il numero di CPU:");
+  scanf("%d",&(os->num_cores));
+  if(os->num_cores<=0){
+    printf("Inserisci almeno una CPU\n");
+    exit(-1);
+  }
+  else if(os->num_cores>MAX_CPUS){
+    printf("Numero Processori non disponibile su questo dispositivo");
+    exit(-1);
+  }
+  else{//inizializzo la lista di processi in running
+    for(int i=0;i<os->num_cores;i++){
+        os->running_processes[i]=0;
+    }
+  }
+
 }
 
 void FakeOS_createProcess(FakeOS* os, FakeProcess* p) {
@@ -18,7 +35,17 @@ void FakeOS_createProcess(FakeOS* os, FakeProcess* p) {
   assert(p->arrival_time==os->timer && "time mismatch in creation");
   // we check that in the list of PCBs there is no
   // pcb having the same pid
-  assert( (!os->running || os->running->pid!=p->pid) && "pid taken");
+  /* assert( (!os->running || os->running->pid!=p->pid) && "pid taken");*/
+
+  //verifico che il processo corrente di ogni CPU abbia pid diverso dal processo p
+  int token = 0;
+  for(int i=0; i<os->num_cores;i++){
+    if(os->running_processes[i]== NULL || os->running_processes[i]->pid == p->pid){
+       token=1;
+       break;
+  }
+  }
+  assert(!token && "pid taken");
 
   ListItem* aux=os->ready.first;
   while(aux){
@@ -125,9 +152,12 @@ void FakeOS_simStep(FakeOS* os){
   // if event over, destroy event
   // and reschedule process
   // if last event, destroy running
-  FakePCB* running=os->running;
-  printf("\trunning pid: %d\n", running?running->pid:-1);
-  if (running) {
+  //FakePCB* running=os->running;
+  //aggiorno la durata dell'evento e se è terminato rischedulo per ogni CPU
+   for (int core = 0; core < os->num_cores; core++) {
+    FakePCB* running = os->running_processes[core];
+    printf("\t processore %d: running pid: %d\n",core, running?running->pid:-1);
+    if (running) {
     ProcessEvent* e=(ProcessEvent*) running->events.first;
     assert(e->type==CPU);
     e->duration--;
@@ -152,22 +182,23 @@ void FakeOS_simStep(FakeOS* os){
           break;
         }
       }
-      os->running = 0;
+    os->running_processes[core] = 0;
     }
   }
-
-
-  // call schedule, if defined
-  if (os->schedule_fn && ! os->running){
+   
+  // call schedule, if defined 
+  //per ogni CPU
+  if (os->schedule_fn && ! os->running_processes[core]){
+    os->cpu_index=core;
     (*os->schedule_fn)(os, os->schedule_args); 
   }
-
+  
   // if running not defined and ready queue not empty
   // put the first in ready to run
-  if (! os->running && os->ready.first) {
-    os->running=(FakePCB*) List_popFront(&os->ready);
+  if (! os->running_processes[core] && os->ready.first) {
+    os->running_processes[core]=(FakePCB*) List_popFront(&os->ready);
   }
-
+  }
   ++os->timer;
 
 }

@@ -1,7 +1,7 @@
 #include "fake_process.h"
 #include "linked_list.h"
 #pragma once
-
+#define MAX_CPUS 10
 
 typedef struct {
   ListItem list;
@@ -13,13 +13,15 @@ struct FakeOS;
 typedef void (*ScheduleFn)(struct FakeOS* os, void* args);
 
 typedef struct FakeOS{
-  FakePCB* running;
+  /* FakePCB* running;*/ //sotistuisco il PCB del processo che controlla la CPU con un array
+  int num_cores;
+   FakePCB* running_processes[MAX_CPUS];
   ListHead ready;
   ListHead waiting;
   int timer;
+  int cpu_index; //aggiunto per tenere traccia delle CPU sulle quali si agisce 
   ScheduleFn schedule_fn;
   void* schedule_args;
-
   ListHead processes;
 } FakeOS;
 
