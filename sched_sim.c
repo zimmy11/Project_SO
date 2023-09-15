@@ -6,48 +6,76 @@
 FakeOS os;
 
 typedef struct {
-  int quantum;
-} SchedRRArgs;
+  float decay;
+} SchedSJFArgs;
+
+void setQuantumPrediction(ListHead* ready, SchedSJFArgs* args){
+    ListItem* first = ready->first;
+    while(first){
+       FakePCB* process = (FakePCB*)first;
+       if(process->to_Schedule == 1){
+       process->current_time=0;
+       process->future_quantum = args -> decay *process->current_time +(1- args->decay)* process->future_quantum; // uso la formula per il SJF con quantum prediction
+       process->to_Schedule=0;
+
+    } 
+    first = first->next;
+    }   
+
+}
 //algortimo di scheduling
-void schedRR(FakeOS* os, void* args_){
-  SchedRRArgs* args=(SchedRRArgs*)args_;
+void schedSJF(FakeOS* os, void* args_){
+  SchedSJFArgs* args=(SchedSJFArgs*)args_;
 
   // look for the first process in ready
   // if none, return
   if (! os->ready.first)
     return;
- 
-  FakePCB* pcb=(FakePCB*) List_popFront(&os->ready);
-  os->running_processes[os->cpu_index]=pcb;
-    assert(pcb->events.first);
-  ProcessEvent* e = (ProcessEvent*)pcb->events.first;
+  setQuantumPrediction(&os->ready,args); //Aggiorno i quantum di ogni processo nella coda ready
+
+  ListItem* aux= os->ready.first;
+   
+  FakePCB* ScheduledProcess=NULL;
+  FakePCB* pcb;
+  while(aux){
+    
+    pcb = (FakePCB*)aux;
+    if(!ScheduledProcess || pcb->future_quantum < ScheduledProcess->future_quantum){
+      ScheduledProcess = pcb;
+    }
+    aux=aux->next;
+  }
+   ScheduledProcess = (FakePCB*)List_detach(&os->ready, (ListItem*)ScheduledProcess);//rimuovo il processo scelto dalla coda ready
+  os->running_processes[os->cpu_index]=ScheduledProcess;//lo assegno alla CPU libera
+    assert(ScheduledProcess->events.first);
+  ProcessEvent* e = (ProcessEvent*)ScheduledProcess->events.first;
   assert(e->type==CPU);
 
   // look at the first event
   // if duration>quantum
   // push front in the list of event a CPU event of duration quantum
   // alter the duration of the old event subtracting quantum
-  if (e->duration>args->quantum) {
+  if (e->duration>ScheduledProcess->future_quantum) {
     ProcessEvent* qe=(ProcessEvent*)malloc(sizeof(ProcessEvent));
     qe->list.prev=qe->list.next=0;
     qe->type=CPU;
-    qe->duration=args->quantum;
-    e->duration-=args->quantum;
-    List_pushFront(&pcb->events, (ListItem*)qe);
+    qe->duration=ScheduledProcess->future_quantum;
+    e->duration-=ScheduledProcess->future_quantum;
+    List_pushFront(&ScheduledProcess->events, (ListItem*)qe);
   }
 };
 
 int main(int argc, char** argv) {
   FakeOS_init(&os);
-  SchedRRArgs srr_args;
-  srr_args.quantum=5;
+  SchedSJFArgs srr_args;
+  srr_args.decay=0.5;
   os.schedule_args=&srr_args;
-  os.schedule_fn=schedRR;
+  os.schedule_fn=schedSJF;
   
   for (int i=1; i<argc; ++i){
     FakeProcess new_process;
     int num_events=FakeProcess_load(&new_process, argv[i]);
-    printf("loading [%s], pid: %d, events:%d",
+    printf("loading [%s], pid: %d, events:%d\n",
            argv[i], new_process.pid, num_events);
     if (num_events) {
       FakeProcess* new_process_ptr=(FakeProcess*)malloc(sizeof(FakeProcess));

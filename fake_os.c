@@ -38,10 +38,10 @@ void FakeOS_createProcess(FakeOS* os, FakeProcess* p) {
   /* assert( (!os->running || os->running->pid!=p->pid) && "pid taken");*/
 
   //verifico che il processo corrente di ogni CPU abbia pid diverso dal processo p
-  int token = 0;
+  int token = 1;
   for(int i=0; i<os->num_cores;i++){
-    if(os->running_processes[i]== NULL || os->running_processes[i]->pid == p->pid){
-       token=1;
+    if(os->running_processes[i]== NULL || os->running_processes[i]->pid != p->pid){
+       token=0;
        break;
   }
   }
@@ -66,7 +66,9 @@ void FakeOS_createProcess(FakeOS* os, FakeProcess* p) {
   new_pcb->list.next=new_pcb->list.prev=0;
   new_pcb->pid=p->pid;
   new_pcb->events=p->events;
-
+  new_pcb->current_time=0;
+  new_pcb->to_Schedule=1;
+  new_pcb->future_quantum=5;
   assert(new_pcb->events.first && "process without events");
 
   // depending on the type of the first event
@@ -161,8 +163,10 @@ void FakeOS_simStep(FakeOS* os){
     ProcessEvent* e=(ProcessEvent*) running->events.first;
     assert(e->type==CPU);
     e->duration--;
+    running->current_time++;
     printf("\t\tremaining time:%d\n",e->duration);
     if (e->duration==0){
+      running->to_Schedule=1;
       printf("\t\tend burst\n");
       List_popFront(&running->events);
       free(e);
@@ -188,14 +192,14 @@ void FakeOS_simStep(FakeOS* os){
    
   // call schedule, if defined 
   //per ogni CPU
-  if (os->schedule_fn && ! os->running_processes[core]){
+  if (os->schedule_fn && !os->running_processes[core]){
     os->cpu_index=core;
     (*os->schedule_fn)(os, os->schedule_args); 
   }
   
   // if running not defined and ready queue not empty
   // put the first in ready to run
-  if (! os->running_processes[core] && os->ready.first) {
+  if (!os->running_processes[core] && os->ready.first) {
     os->running_processes[core]=(FakePCB*) List_popFront(&os->ready);
   }
   }

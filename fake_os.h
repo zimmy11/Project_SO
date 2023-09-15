@@ -7,6 +7,9 @@ typedef struct {
   ListItem list;
   int pid;
   ListHead events;
+  int future_quantum;
+  int current_time;
+  int to_Schedule; 
 } FakePCB;
 
 struct FakeOS;
