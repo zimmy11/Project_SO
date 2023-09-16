@@ -14,9 +14,9 @@ void setQuantumPrediction(ListHead* ready, SchedSJFArgs* args){
     while(first){
        FakePCB* process = (FakePCB*)first;
        if(process->to_Schedule == 1){
-       process->current_time=0;
-       process->future_quantum = args -> decay *process->current_time +(1- args->decay)* process->future_quantum; // uso la formula per il SJF con quantum prediction
+       process->future_quantum = args -> decay * process->current_time +(1- args->decay)* process->future_quantum; // uso la formula per il SJF con quantum prediction
        process->to_Schedule=0;
+       process->current_time=0;
 
     } 
     first = first->next;

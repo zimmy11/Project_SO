@@ -208,4 +208,15 @@ void FakeOS_simStep(FakeOS* os){
 }
 
 void FakeOS_destroy(FakeOS* os) {
+  os->schedule_fn=NULL;
+  os->ready.first=NULL;
+  os->waiting.first=NULL;
+  os->processes.first=NULL;
+  os->timer=0;
+  os->cpu_index=0;
+  for(int i=0 ;os->num_cores;i++){
+    os->running_processes[i]=NULL;
+  }
+  os->num_cores=0;
+  os=NULL;
 }
